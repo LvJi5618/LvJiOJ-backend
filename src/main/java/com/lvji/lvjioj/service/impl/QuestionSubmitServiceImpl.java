@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.lvji.lvjioj.common.ErrorCode;
 import com.lvji.lvjioj.constant.CommonConstant;
 import com.lvji.lvjioj.exception.BusinessException;
+import com.lvji.lvjioj.judge.judgeservice.JudgeService;
 import com.lvji.lvjioj.mapper.QuestionSubmitMapper;
 import com.lvji.lvjioj.model.dto.question.QuestionQueryRequest;
 import com.lvji.lvjioj.model.dto.questionsubmit.QuestionSubmitAddRequest;
@@ -25,6 +26,7 @@ import com.lvji.lvjioj.service.UserService;
 import com.lvji.lvjioj.utils.SqlUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -32,6 +34,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -48,7 +51,12 @@ public class QuestionSubmitServiceImpl extends ServiceImpl<QuestionSubmitMapper,
 
     @Resource
     private UserService userService;
-    
+
+
+    @Resource
+    @Lazy
+    private JudgeService judgeService;
+
     /**
      * 提交题目
      *
@@ -83,7 +91,12 @@ public class QuestionSubmitServiceImpl extends ServiceImpl<QuestionSubmitMapper,
         if(!save){
             throw new BusinessException(ErrorCode.SYSTEM_ERROR,"提交题目失败");
         }
-        return questionSubmit.getId();
+        Long questionSubmitId = questionSubmit.getId();
+        // 执行判题服务
+        CompletableFuture.runAsync(() -> {
+            judgeService.doJudge(questionSubmitId);
+        });
+        return questionSubmitId;
     }
 
     /**
